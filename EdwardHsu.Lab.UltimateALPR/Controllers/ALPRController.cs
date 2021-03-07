@@ -20,7 +20,7 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
     public class ALPRController : ControllerBase
     {
         [HttpPost]
-        public async Task<IEnumerable<string>> Go(IFormFile image, [FromServices] IWebHostEnvironment env)
+        public async Task<IActionResult> Go(IFormFile image, [FromServices] IWebHostEnvironment env)
         {
             using var stream = image.OpenReadStream();
 
@@ -39,7 +39,7 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
 
 
             var tag = "*[ULTALPR_SDK INFO]: result: ";
-            IEnumerable<string> result = null;
+            string result = null;
             Action<string> cliHandle = line =>
             {
                 if (line?.StartsWith(tag) != true)
@@ -47,15 +47,15 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
                     return;
                 }
                 line = line.Replace(tag, string.Empty);
-                result = JObject.Parse(line)["plates"].Select(x => x["text"].Value<string>());
+                result = line;
             };
 
-            var cmd = Cli.Wrap(@"binaries\windows\x86_64\recognizer.exe")
+            var cmd = Cli.Wrap(@"/alpr/ultimateALPR-SDK-master/binaries/linux/x86_64/recognizer")
                 .WithArguments(args => args
-                    .Add(@"--image " + filename, false)
-                    .Add(@"--assets binaries\assets", false)
+                    .Add(@"--image " + System.IO.Path.Combine(env.ContentRootPath, filename), false)
+                    .Add(@"--assets /alpr/ultimateALPR-SDK-master/assets", false)
                 )
-                .WithWorkingDirectory(env.ContentRootPath)
+                .WithWorkingDirectory("/alpr/ultimateALPR-SDK-master/binaries/linux/x86_64")
                 .WithStandardOutputPipe(PipeTarget.ToDelegate(cliHandle))
                 .WithStandardErrorPipe(PipeTarget.ToDelegate(cliHandle))
                 .WithValidation(CommandResultValidation.None);
@@ -64,7 +64,7 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
 
             System.IO.File.Delete(filename);
 
-            return result;
+            return Content(result, "application/json");
         }
     }
 }
