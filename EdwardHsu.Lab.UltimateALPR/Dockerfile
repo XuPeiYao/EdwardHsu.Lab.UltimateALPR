@@ -12,7 +12,7 @@ RUN wget https://github.com/DoubangoTelecom/ultimateALPR-SDK/archive/master.zip
 RUN pwd
 RUN unzip master.zip
 RUN wget https://doubango.org/deep_learning/libtensorflow_r1.14_cpu+gpu_linux_x86-64.tar.gz
-
+RUN chmod +x ultimateALPR-SDK-master/binaries/linux/x86_64/recognizer
 RUN tar -xf libtensorflow_r1.14_cpu+gpu_linux_x86-64.tar.gz -C ultimateALPR-SDK-master/binaries/linux/x86_64
 
 RUN rm master.zip
