@@ -112,38 +112,50 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
             public int frame_id { get; set; }
             public List<Plate> plates { get; set; }
         }
+        
+        private readonly List<Regex> regexList = new List<Regex>
+        {
+            new Regex(@"^(?<prefix>[A-Z]{3})(?<suffix>[\d]{4})$"),
+            new Regex(@"^(?<prefix>[\d]{4})(?<suffix>[\d]{2})$")
+        };
+
         private string Convert(string jsonString)
         {
             Root data = System.Text.Json.JsonSerializer.Deserialize<Root>(jsonString);
+            
             if (data.plates.Count == 0)
             {
                 return null;
             }
+
+            var result = data.plates.Select(plate => {
+                var text = plate.text;
+
+                foreach (var regex in regexList)
+                {
+                    if (!regex.IsMatch(text))
+                    {
+                        continue;
+                    }
+
+                    var match = regex.Match(text);
+                    var prefix = match.Groups["prefix"];
+                    var suffix = match.Groups["suffix"];
+                    return $"{prefix}-{suffix}";
+                }
+
+                return text;
+            }).ToList();
+
+            if (result.Count < 3)
+            {
+                result.AddRange(Enumerable.Range(0, 3 - result.Count).Select(x => string.Empty));
+            }
+
             return System.Text.Json.JsonSerializer.Serialize(new
             {
-                result = data.plates.Select(plate => {
-                    var text = plate.text;
-                    var r1   = new Regex(@"^(?<prefix>[A-Z]{3})(?<suffix>[\d]{4})$");
-                    if (r1.IsMatch(text))
-                    {
-                        var prefix = r1.Match(text).Groups["prefix"];
-                        var suffix = r1.Match(text).Groups["suffix"];
-                        return $"{prefix}-{suffix}";
-                    }
-                    var r2 = new Regex(@"^(?<prefix>[\d]{4})(?<suffix>[\d]{2})$");
-                    if (r2.IsMatch(text))
-                    {
-                        var prefix = r2.Match(text).Groups["prefix"];
-                        var suffix = r2.Match(text).Groups["suffix"];
-                        return $"{prefix}-{suffix}";
-                    }
-                    return text;
-                })
+                result
             });
         }
-
-
-
-
     }
 }
