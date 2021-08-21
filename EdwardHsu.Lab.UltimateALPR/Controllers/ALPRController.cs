@@ -60,6 +60,9 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
                 result = line;
             };
 
+            var licenseTokenFile = System.IO.Path.Combine(env.ContentRootPath, "license.key");
+            var licenseTokenFileExists = System.IO.File.Exists(licenseTokenFile);
+
             var cmd = Cli.Wrap(System.IO.Path.Combine(env.ContentRootPath,@"Runtime/recognizer"))
                 .WithArguments(args =>
                 {
@@ -67,10 +70,9 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
                                      .Add(@"--image " + System.IO.Path.Combine(env.ContentRootPath, filename), false)
                                      .Add(@"--assets " + System.IO.Path.Combine(env.ContentRootPath, @"Models"), false);
 
-                    var licenseTokenFile = System.IO.Path.Combine(env.ContentRootPath, "license.key");
-                    if (System.IO.File.Exists(licenseTokenFile))
+                    if (licenseTokenFileExists)
                     {
-                        argBuilder.Add("--tokenfile " + licenseTokenFile);
+                        argBuilder.Add(@"--tokenfile " + licenseTokenFile, false);
                     }
                 })
                 .WithWorkingDirectory(env.ContentRootPath)
