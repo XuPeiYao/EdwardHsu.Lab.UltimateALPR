@@ -116,7 +116,7 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
         private readonly List<Regex> regexList = new List<Regex>
         {
             new Regex(@"^(?<prefix>[A-Z]{3})(?<suffix>[\d]{4})$"),
-            new Regex(@"^(?<prefix>[\d]{4})(?<suffix>[\d]{2})$")
+            new Regex(@"^(?<prefix>[\d]{4})(?<suffix>[A-Z\d]{2})$")
         };
 
         private string Convert(string jsonString)
