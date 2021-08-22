@@ -112,14 +112,11 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
             public int frame_id { get; set; }
             public List<Plate> plates { get; set; }
         }
-        
-        private readonly List<Regex> regexList = new List<Regex>
-        {
-            new Regex(@"^(?<prefix>[A-Z]{3})(?<suffix>[\d]{4})$"),
-            new Regex(@"^(?<prefix>[\d]{4})(?<suffix>[A-Z\d]{2})$")
-        };
 
-        private string Convert(string jsonString)
+        private static readonly Regex r1 = new(@"^(?<prefix>[A-Z]{2,3})(?<suffix>[I\d]{3,4})$");
+        private static readonly Regex r2 = new(@"^(?<prefix>[\d]{2,4})(?<suffix>([A-Z]{2}|E2|FV|H2))$");
+
+        private static string Convert(string jsonString)
         {
             Root data = System.Text.Json.JsonSerializer.Deserialize<Root>(jsonString);
             
@@ -131,16 +128,19 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
             var result = data.plates.Select(plate => {
                 var text = plate.text;
 
-                foreach (var regex in regexList)
+                if (r1.IsMatch(text))
                 {
-                    if (!regex.IsMatch(text))
-                    {
-                        continue;
-                    }
+                    var match = r1.Match(text);
+                    var prefix = match.Groups["prefix"].Value;
+                    var suffix = match.Groups["suffix"].Value.Replace("I", "1");
+                    return $"{prefix}-{suffix}";
+                }
 
-                    var match = regex.Match(text);
-                    var prefix = match.Groups["prefix"];
-                    var suffix = match.Groups["suffix"];
+                if (r2.IsMatch(text))
+                {
+                    var match = r2.Match(text);
+                    var prefix = match.Groups["prefix"].Value;
+                    var suffix = match.Groups["suffix"].Value;
                     return $"{prefix}-{suffix}";
                 }
 
