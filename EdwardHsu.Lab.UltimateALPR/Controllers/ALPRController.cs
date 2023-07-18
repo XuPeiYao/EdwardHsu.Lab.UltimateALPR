@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.EventSource;
 
 namespace EdwardHsu.Lab.UltimateALPR.Controllers
 {
@@ -45,35 +46,22 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
             }
 
 
-            var    tag    = "*[ULTALPR_SDK INFO]: result: ";
+            var tag = "*[ULTALPR_SDK INFO]: result: ";
             string result = null;
-            var    temp   = "";
+            var temp = "";
             Action<string> cliHandle = line =>
             {
-                temp += "\r\n" + line;
 
-                if (line?.StartsWith(tag) != true)
-                {
-                    return;
-                }
-                line = line.Replace(tag, string.Empty);
-                result = line;
+                result += line + "\n";
             };
 
-            var licenseTokenFile = System.IO.Path.Combine(env.ContentRootPath, "license.key");
-            var licenseTokenFileExists = System.IO.File.Exists(licenseTokenFile);
 
-            var cmd = Cli.Wrap(System.IO.Path.Combine(env.ContentRootPath,@"Runtime/recognizer"))
+            var cmd = Cli.Wrap(System.IO.Path.Combine(env.ContentRootPath, @"openalpr_64\alpr.exe"))
                 .WithArguments(args =>
                 {
                     var argBuilder = args
-                                     .Add(@"--image " + System.IO.Path.Combine(env.ContentRootPath, filename), false)
-                                     .Add(@"--assets " + System.IO.Path.Combine(env.ContentRootPath, @"Models"), false);
+                                     .Add(System.IO.Path.Combine(env.ContentRootPath, filename), false);
 
-                    if (licenseTokenFileExists)
-                    {
-                        argBuilder.Add(@"--tokenfile " + licenseTokenFile, false);
-                    }
                 })
                 .WithWorkingDirectory(env.ContentRootPath)
                 .WithStandardOutputPipe(PipeTarget.ToDelegate(cliHandle))
@@ -85,14 +73,57 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
             System.IO.File.Delete(filename);
 
 
-            if(string.IsNullOrWhiteSpace((result)))
+            if (string.IsNullOrWhiteSpace((result)))
             {
+                Console.WriteLine("CLI Error");
                 return NotFound();
             }
 
-            return Content(Convert(result), "application/json");
+            return Content(Convert(OpenALPR(result)), "application/json");
         }
 
+        string OpenALPR(string alprStr)
+        {
+            var mline = alprStr.Replace("\r", "").Split("\n").Skip(1);
+
+            Regex r = new(@"\W+-\W(?<code>[^ \t]+)\W+");
+
+            mline = mline.Where(x => r.IsMatch(x)).ToList();
+
+            List<string> codes = new();
+            foreach (var line in mline)
+            {
+                codes.Add(r.Match(line).Groups["code"].Value);
+            }
+
+            var obj = new Root()
+            {
+                duration = 0,
+                frame_id = 0,
+                plates = codes.Select(x => new Plate()
+                {
+                    car = new Car()
+                    {
+                        confidence = 0,
+                        warpedBox = new List<double>()
+                        {
+                            0, 0, 0, 0, 0, 0, 0, 0
+                        }
+                    },
+                    confidences = new List<double>()
+                    {
+                        0, 0, 0, 0, 0, 0, 0, 0
+                    },
+                    text = x,
+                    warpedBox = new List<double>()
+                    {
+                        0, 0, 0, 0, 0, 0, 0, 0
+                    }
+                }).ToList()
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(obj);
+        }
 
         public class Car
         {
@@ -119,13 +150,14 @@ namespace EdwardHsu.Lab.UltimateALPR.Controllers
         private static string Convert(string jsonString)
         {
             Root data = System.Text.Json.JsonSerializer.Deserialize<Root>(jsonString);
-            
+
             if (data.plates.Count == 0)
             {
                 return null;
             }
 
-            var result = data.plates.Select(plate => {
+            var result = data.plates.Select(plate =>
+            {
                 var text = plate.text;
 
                 if (r1.IsMatch(text))
